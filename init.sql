@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 DROP TABLE IF EXISTS receipt_items;
 DROP TABLE IF EXISTS receipts;
 DROP TABLE IF EXISTS products;
@@ -8,7 +9,7 @@ CREATE TABLE employees (
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   tel TEXT UNIQUE NOT NULL CHECK (tel ~ '^[0-9]{10}$'),
-  pin TEXT NOT NULL,
+  pin TEXT UNIQUE NOT NULL,
   role TEXT DEFAULT 'cashier',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -51,4 +52,4 @@ CREATE INDEX idx_receipt_items_receipt_id ON receipt_items(receipt_id);
 
 INSERT INTO employees (name, email,tel, pin, role)
 VALUES 
-('Admin', 'admin@mail.com','0800000000', '123456', 'admin')
+('Admin', 'admin@mail.com','0800000000', crypt('123456', gen_salt('bf')), 'admin')
