@@ -1,13 +1,132 @@
 import pool from "../db/db.js";
 
+export const getListProducts = async (req, res) => {
+  try {
+    const { search, category, page = 1, limit = 10 } = req.query;
+
+    const currentPage = Math.max(parseInt(page), 1);
+    const pageSize = Math.max(parseInt(limit), 1);
+    const offset = (currentPage - 1) * pageSize;
+
+    let where = `WHERE 1=1`;
+    const values = [];
+    let index = 1;
+
+    if (search) {
+      where += `
+        AND (
+          p.name ILIKE $${index}
+          OR p.barcode ILIKE $${index}
+          OR p.category ILIKE $${index}
+        )
+      `;
+      values.push(`%${search}%`);
+      index++;
+    }
+
+    if (category) {
+      where += `
+        AND p.category ILIKE $${index}
+      `;
+      values.push(`%${category}%`);
+      index++;
+    }
+
+    // นับจำนวนทั้งหมด
+    const countQuery = `
+      SELECT COUNT(*)::int AS total
+      FROM products p
+      ${where}
+    `;
+
+    const countResult = await pool.query(countQuery, values);
+    const total = countResult.rows[0].total;
+
+    // Query ข้อมูล
+    const dataQuery = `
+      SELECT *
+      FROM products p
+      ${where}
+      ORDER BY p.id ASC
+      LIMIT $${index}
+      OFFSET $${index + 1}
+    `;
+
+    const dataResult = await pool.query(dataQuery, [
+      ...values,
+      pageSize,
+      offset,
+    ]);
+
+    res.json({
+      data: dataResult.rows,
+      pagination: {
+        page: currentPage,
+        limit: pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+        hasNextPage: currentPage < Math.ceil(total / pageSize),
+        hasPrevPage: currentPage > 1,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+};
+
 export const getProducts = async (req, res) => {
-  const result = await pool.query("SELECT * FROM products ORDER BY id ASC");
-  res.json(result.rows);
+  try {
+    const { search, category } = req.query;
+
+    let query = `
+      SELECT *
+      FROM products p
+      WHERE 1=1
+    `;
+
+    const values = [];
+    let index = 1;
+
+    if (search) {
+      query += `
+        AND (
+          p.name ILIKE $${index}
+          OR p.barcode ILIKE $${index}
+          OR p.category ILIKE $${index}
+        )
+      `;
+      values.push(`%${search}%`);
+      index++;
+    }
+
+    if (category) {
+      query += `
+        AND p.category ILIKE $${index}
+      `;
+      values.push(`%${category}%`);
+      index++;
+    }
+
+    query += " ORDER BY id ASC";
+
+    const result = await pool.query(query, values);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 };
 
 export const addProduct = async (req, res) => {
   try {
-    const { name, barcode, price, stock_qty } = req.body;
+    const { name, barcode, price, stock_qty, category } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({
@@ -34,11 +153,16 @@ export const addProduct = async (req, res) => {
       }
     }
 
+    if (!category) {
+      return res.status(400).json({
+        message: "category จำเป็น",
+      });
+    }
     const result = await pool.query(
-      `INSERT INTO products (name, barcode, price, stock_qty)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO products (name, barcode, price, stock_qty,category)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [name, barcode, price, stock_qty || 0],
+      [name, barcode, price, stock_qty || 0, category],
     );
 
     res.status(201).json({

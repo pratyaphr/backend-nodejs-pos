@@ -19,6 +19,7 @@ CREATE TABLE products (
   name TEXT NOT NULL,
   barcode TEXT UNIQUE NOT NULL,
   price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+  category TEXT NOT NULL,
   stock_qty INT DEFAULT 0 CHECK (stock_qty >= 0),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -6,7 +6,7 @@ services:
     container_name: pos-db
     restart: always
     environment:
-      POSTGRES_USER: postgres
+      POSTGRES_USER: v
       POSTGRES_PASSWORD: ch2541
       POSTGRES_DB: pos_db
     ports:
